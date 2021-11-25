@@ -101,6 +101,80 @@ namespace StringAPI
         std::string_view Pattern;
     };
 
+
+    struct Split_
+    {
+        std::string_view BaseRange;
+
+        auto By( const char Delimiter )
+        {
+            auto RangeBegin = BaseRange.begin();
+            auto RangeEnd   = BaseRange.end();
+
+            auto Result = std::vector<std::string_view>{};
+            Result.reserve( std::count( RangeBegin, RangeEnd, Delimiter ) + 1 );
+
+            while( RangeBegin != RangeEnd )
+            {
+                auto DelimiterPos = std::find( RangeBegin, RangeEnd, Delimiter );
+                Result.emplace_back( RangeBegin, DelimiterPos );
+                if( DelimiterPos == RangeEnd )
+                    RangeBegin = RangeEnd;
+                else
+                    RangeBegin = DelimiterPos + 1;
+            }
+
+            return Result;
+        }
+    };
+
+
+    struct Split
+    {
+        std::string_view BaseRange;
+
+        struct InternalItorSentinel
+        {};
+
+        struct InternalItor
+        {
+            std::string_view BaseRange;
+            const char       Delimiter;
+
+            auto operator*()
+            {
+                auto DelimiterPos = std::find( BaseRange.begin(), BaseRange.end(), Delimiter );
+                return std::string_view{ BaseRange.begin(), DelimiterPos };
+            }
+
+            auto operator!=( InternalItorSentinel ) { return ! BaseRange.empty(); }
+            auto operator++()
+            {
+                auto DelimiterPos = std::find( BaseRange.begin(), BaseRange.end(), Delimiter );
+                if( DelimiterPos == BaseRange.end() )
+                    BaseRange.remove_suffix( BaseRange.length() );
+                else
+                    BaseRange = std::string_view{ DelimiterPos + 1, BaseRange.end() };
+            }
+        };
+
+        struct InternalRange
+        {
+            std::string_view BaseRange;
+            const char       Delimiter;
+
+            auto begin() { return InternalItor{ BaseRange, Delimiter }; }
+            auto end() { return InternalItorSentinel{}; }
+            auto size()
+            {
+                return ! BaseRange.ends_with( Delimiter )  // ending delim adjustment
+                     + std::count( BaseRange.begin(), BaseRange.end(), Delimiter );
+            }
+        };
+
+        auto By( const char Delimiter ) { return InternalRange{ BaseRange, Delimiter }; };
+    };
+
     struct SplitBetween
     {
         std::string_view LeftDelimiter, RightDelimiter;
